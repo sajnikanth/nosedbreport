@@ -1,6 +1,7 @@
 import logging
 import os
 import traceback
+import warnings
 import sys
 import pprint
 from time import time
@@ -36,7 +37,6 @@ class NoseDBReporterBase(Plugin):
         self._timer = 0
         self.logger = logging.getLogger("nose.plugins.nosedbreport")
         self.start_time = NoseDBReporterBase.time_now()
-
 
 
     def get_full_doc(self, test):
@@ -129,4 +129,23 @@ class NoseDBReporterBase(Plugin):
         self.test_case_results[id]["timeTaken"] = taken
         self.test_suites[suite]["lastCompleted"] = NoseDBReporterBase.time_now()
         
+    def addWarning(self, test, err, capt=None, tb_info=None):
+        """
+        sets the status of the ``test`` to 'warn',
+        collects the trace and time taken to execute.
+        """
+        # source - http://stackoverflow.com/questions/22373927/get-traceback-of-warnings
+        def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+            traceback.print_stack()
+            log = file if hasattr(file,'write') else sys.stderr
+            log.write(warnings.formatwarning(message, category, filename, lineno, line))
 
+        file_path, suite, case = test.address()
+        taken = time() - self._timer
+        tb = ''.join(warn_with_traceback)
+        id = test.id()
+        if self.test_case_results.has_key(id):
+            self.test_case_results[id]["traceback"] = tb
+            self.test_case_results[id]["timeTaken"] = taken
+            self.test_case_results[id]["status"] = "warn"
+            self.test_suites[suite]["lastCompleted"] = NoseDBReporterBase.time_now()
